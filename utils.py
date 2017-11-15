@@ -28,8 +28,7 @@ def importData(files):
                     if feat in ['mfcc', 'gfcc', 'lpc']:
                         sample.extend(d['sample_'+str(nsample)][feat][0])
                     else:
-                        pass
-                        #sample.append(d['sample_'+str(nsample)][feat][0])
+                        sample.append(d['sample_'+str(nsample)][feat][0])
                 database[clas].append(sample)
     return database
 
@@ -47,47 +46,53 @@ def randomTrainTest(data, percentage_train):
     return train, test
 
 def printDataStats(train, test):
-    print 'Created training and testing sets with the following number of sounds:\n\tTrain\tTest\tTotal\tClass'
+    print 'Created training and testing sets with the following number of sounds:\n\n\tTrain\tTest\tTotal\tClass\n'
+    tr = 0
+    te = 0
     for class_name in train:
         print '\t%i\t%i\t%i\t%s' % (len(train[class_name]), len(test[class_name]), len(train[class_name])+len(test[class_name]), class_name)
+        tr = tr+len(train[class_name])
+        te = te+len(test[class_name])
+    print '\n\t%i\t%i\t%i\t%s' % (tr, te, tr+te, 'TOTAL')
 
 def computeGMMS(train, n_components):
     gmms = dict()
     for clas in train:
-        features = train[clas]
-
         gmms[clas] = mixture.GaussianMixture(n_components)
-        gmms[clas].fit(features)
+        gmms[clas].fit(train[clas])
     return gmms
 
 def scoreGMMS(gmms, test):
     correct = []
     predicted = []
-    for genre in test:
-        for item in test[genre]:
+    for clas in test:
+        for item in test[clas]:
             results = dict()
             x = np.array(item).reshape(1,-1)
             for g in gmms:
                 results[g] = gmms[g].score(x)
 
             predicted.append(max(results, key=results.get))
-            correct.append(genre)
+            correct.append(clas)
 
+    return correct, predicted
+
+
+def classificationReport(correct, predicted, labels, plot=False):
     print "\nClassification report\n"
     print metrics.classification_report(correct, predicted)
     print "Confusion Matrix\n"
-    print metrics.confusion_matrix(correct, predicted, test.keys())
-    plotConfusionMatrix(test.keys(), correct, predicted)
+    print metrics.confusion_matrix(correct, predicted)
+    if plot:
+        plotConfusionMatrix(labels, correct, predicted)
 
 def plotConfusionMatrix(labels, correct, predicted):
     cm = metrics.confusion_matrix(correct, predicted, labels)
-    print(cm)
     fig = plt.figure()
     ax = fig.add_subplot(111)
     cax = ax.matshow(cm)
-    plt.title('Confusion matrix of the classifier')
     fig.colorbar(cax)
-    ax.set_xticklabels([''] + labels)
+    ax.set_xticklabels([''] + labels, rotation='vertical')
     ax.set_yticklabels([''] + labels)
     plt.xlabel('Predicted')
     plt.ylabel('True')
