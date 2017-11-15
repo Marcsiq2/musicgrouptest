@@ -77,23 +77,8 @@ def scoreGMMS(gmms, test):
 
     return correct, predicted
 
-
-def classificationReport(correct, predicted, labels, plot=False):
+def classificationReport(correct, predicted):
     print "\nClassification report\n"
     print metrics.classification_report(correct, predicted)
     print "Confusion Matrix\n"
     print metrics.confusion_matrix(correct, predicted)
-    if plot:
-        plotConfusionMatrix(labels, correct, predicted)
-
-def plotConfusionMatrix(labels, correct, predicted):
-    cm = metrics.confusion_matrix(correct, predicted, labels)
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    cax = ax.matshow(cm)
-    fig.colorbar(cax)
-    ax.set_xticklabels([''] + labels, rotation='vertical')
-    ax.set_yticklabels([''] + labels)
-    plt.xlabel('Predicted')
-    plt.ylabel('True')
-    plt.show()
