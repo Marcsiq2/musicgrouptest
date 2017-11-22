@@ -46,7 +46,7 @@ def randomTrainTest(data, percentage_train):
     return train, test
 
 def printDataStats(train, test):
-    print 'Created training and testing sets with the following number of sounds:\n\n\tTrain\tTest\tTotal\tClass\n'
+    print 'Created training and testing sets with the following number of samples:\n\n\tTrain\tTest\tTotal\tClass\n'
     tr = 0
     te = 0
     for class_name in train:
@@ -55,11 +55,11 @@ def printDataStats(train, test):
         te = te+len(test[class_name])
     print '\n\t%i\t%i\t%i\t%s' % (tr, te, tr+te, 'TOTAL')
 
-def computeGMMS(train, n_components, covariance_type='full'):
+def computeGMMS(data, n_components, covariance_type='full'):
     gmms = dict()
-    for clas in train:
+    for clas in data:
         gmms[clas] = mixture.GaussianMixture(n_components, covariance_type)
-        gmms[clas].fit(train[clas])
+        gmms[clas].fit(data[clas])
     return gmms
 
 def scoreGMMS(gmms, test):
@@ -67,20 +67,29 @@ def scoreGMMS(gmms, test):
     predicted = []
     for clas in test:
         for item in test[clas]:
-            results = dict()
-            x = np.array(item).reshape(1,-1)
-            for g in gmms:
-                results[g] = gmms[g].score(x)
-            predicted.append(max(results, key=results.get))
+            predicted.append(predict(gmms, item))
             correct.append(clas)
 
     return correct, predicted
 
-def normalize_data(data):
+def predict(gmms, sample):
+    results = dict()
+    x = np.array(sample).reshape(1,-1)
+    for g in gmms:
+        results[g] = gmms[g].score(x)
+    return max(results, key=results.get)
+
+def convertToXY(data):
     X = []
-    for num, clas in enumerate(data):
+    Y = []
+    for clas in data:
         for item in data[clas]:
             X.append(item)
+            Y.append(clas)
+    return X, Y
+
+def normalize_data(data):
+    X, Y = convertToXY(data)
 
     normalized = []
     for idx in range(len(X[0])):
@@ -112,10 +121,10 @@ def classificationReport(correct, predicted):
     print "Confusion Matrix\n"
     print metrics.confusion_matrix(correct, predicted)
 
-def runXtimes(data, percentage_train=0.3, n_components=2, nruns=10, printa=False):
+def runXtimes(data, percentage_train=0.3, n_components=2, covariance_type='full', nruns=10, printa=False):
     stats = []
     if printa:
-        print 'Results with %i number of runs p_train %.2f and n_components %i :\n\n\tPrec\tRec\tf1-s\n' % (nruns, percentage_train, n_components)
+        print 'Iter\tPrec\tRec\tf1-s\n'
     for n in range(nruns):
         train, test = randomTrainTest(data, percentage_train)
         gmms = computeGMMS(train, n_components)
@@ -123,7 +132,7 @@ def runXtimes(data, percentage_train=0.3, n_components=2, nruns=10, printa=False
         precision, recall, f1score, support = metrics.precision_recall_fscore_support(correct, predicted, average='weighted')
         stats.append([precision, recall, f1score])
         if printa:
-            print 'Run %i:\t%.3f\t%.3f\t%.3f' % (n+1,precision, recall, f1score)
+            print '%i\t%.3f\t%.3f\t%.3f' % (n+1,precision, recall, f1score)
     if printa:
         print '\navg:\t' + '\t'.join(['%.3f' % a for a in np.average(stats, axis=0)]) + '\n'
     return np.average(stats, axis=0)
