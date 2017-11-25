@@ -1,8 +1,12 @@
 import os
+import csv
 import json
 import random
+import itertools
 import numpy as np
 from sklearn import mixture
+import matplotlib.pyplot as plt
+import matplotlib as mpl
 from sklearn import metrics
 from sklearn import preprocessing
 
@@ -121,18 +125,51 @@ def classificationReport(correct, predicted):
     print "Confusion Matrix\n"
     print metrics.confusion_matrix(correct, predicted)
 
-def runXtimes(data, percentage_train=0.3, n_components=2, covariance_type='full', nruns=10, printa=False):
-    stats = []
-    if printa:
-        print 'Iter\tPrec\tRec\tf1-s\n'
-    for n in range(nruns):
-        train, test = randomTrainTest(data, percentage_train)
-        gmms = computeGMMS(train, n_components)
-        correct, predicted = scoreGMMS(gmms, test)
-        precision, recall, f1score, support = metrics.precision_recall_fscore_support(correct, predicted, average='weighted')
-        stats.append([precision, recall, f1score])
-        if printa:
-            print '%i\t%.3f\t%.3f\t%.3f' % (n+1,precision, recall, f1score)
-    if printa:
-        print '\navg:\t' + '\t'.join(['%.3f' % a for a in np.average(stats, axis=0)]) + '\n'
-    return np.average(stats, axis=0)
+
+def analyzeGMMs(data, max_components=10, nruns=10, results_file='results.csv'):
+    cv_types = ['spherical', 'tied', 'diag', 'full']
+    color_iter = itertools.cycle(['c','y', 'r','b'])
+    n_components_range = range(1, max_components+1)
+    f1s = []
+    bestf1s = 0
+
+    with open(results_file, 'wb') as csvfile:
+        writer = csv.writer(csvfile, delimiter=',')
+        writer.writerow(['covariance_type', 'n_components', 'iteration', 'precision', 'recall', 'f1-score'])
+        for cv_type in cv_types:
+            for n_components in n_components_range:
+                stats = []
+                for n in range(1,nruns+1):
+                    train, test = randomTrainTest(data, percentage_train=0.7)
+                    gmms = computeGMMS(train, n_components, cv_type)
+                    correct, predicted = scoreGMMS(gmms, test)
+                    precision, recall, f1score, support = metrics.precision_recall_fscore_support(correct, predicted, average='weighted')
+                    stats.append([precision, recall, f1score])
+                    writer.writerow([cv_type, n_components, n, precision, recall, f1score])
+                csvfile.flush()
+                f1sc = np.average(stats, axis=0)
+                f1s.append(f1sc[2])
+                if f1s[-1] > bestf1s:
+                    bestf1s = f1s[-1]
+                    best_gmm = (cv_type, n_components)
+
+    print '\n***** Best F1-score of {} --> with cov: {} and n_comp: {} *****'.format(bestf1s, best_gmm[0], best_gmm[1])
+
+    #plotting the results
+    f1s = np.array(f1s)
+    bars = []
+    
+    fig=plt.figure(figsize=(12, 8))
+    for i, (cv_type, color) in enumerate(zip(cv_types, color_iter)):
+        xpos = np.array(n_components_range) + .2 * (i - 2)
+        bars.append(plt.bar(xpos, f1s[i * len(n_components_range):
+                                      (i + 1) * len(n_components_range)],
+                            width=.2, color=color))
+    plt.xticks(n_components_range)
+    plt.ylim([0, 1])
+    plt.title('F1-score per model')
+    plt.xlabel('Number of components')
+    plt.legend([b[0] for b in bars], cv_types)
+    plt.show()
+
+    return best_gmm
