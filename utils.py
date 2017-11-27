@@ -51,12 +51,12 @@ def randomTrainTest(data, percentage_train):
 
 def printDataStats(train, test):
     print 'Created training and testing sets with the following number of samples:\n\n\tTrain\tTest\tTotal\tClass\n'
-    tr = 0
-    te = 0
+
     for class_name in train:
         print '\t%i\t%i\t%i\t%s' % (len(train[class_name]), len(test[class_name]), len(train[class_name])+len(test[class_name]), class_name)
-        tr = tr+len(train[class_name])
-        te = te+len(test[class_name])
+
+    tr = sum(len(train[v]) for v in train)
+    te = sum(len(test[v]) for v in test)
     print '\n\t%i\t%i\t%i\t%s' % (tr, te, tr+te, 'TOTAL')
 
 def computeGMMS(data, n_components, covariance_type='full'):
